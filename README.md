@@ -49,8 +49,8 @@ python inference.py \
 **Example:**
 ```bash
 python inference.py \
-    --protein_pdb ./src/sample/1a30_protein.pdb \
-    --smiles "CCO"
+    --protein_pdb ./src/sample/1bzc_protein.pdb \
+    --smiles "[O-]C(=O)CC[C@@H](C(=O)N)NC(=O)c1ccc2c(c1)ccc(c2)C(P(=O)([O-])[O-])(F)F"
 ```
 
 ## Output
