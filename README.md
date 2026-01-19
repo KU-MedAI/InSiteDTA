@@ -57,6 +57,18 @@ python inference.py \
 
 The model outputs predicted binding affinity in pK scale (higher values indicate stronger binding).
 
+## Data
+
+**$Coreset_{crystal}$**
+- Standard benchmark dataset from PDBbind
+
+**$Coreset_{redocked}$**
+- Coreset with redocked ligand in the native pocket
+
+**$Coreset_{p2rank}$**
+- Coreset with redocked ligand in the p2rank predicted pocket
+
+
 ## Citation
 
 TBD
