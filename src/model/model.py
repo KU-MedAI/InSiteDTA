@@ -91,7 +91,7 @@ class InSiteDTA(nn.Module):
             activation=sw_act
         )
 
-        self.mol_encoder = IntegratedMolEncoder(  # 이 안에 하드코딩 파라미터 많음!
+        self.mol_encoder = IntegratedMolEncoder(
             encoder_types=mol_encoder_types,
             in_channels=mol_in_channels,
             hidden_channels=mol_hidden_channels,
@@ -223,12 +223,6 @@ class InSiteDTA(nn.Module):
             hidden_dim=1024,
             out_dim=1,
         )
-
-        print(f"Feature dimensions: {self.hidden_sizes}")
-
-        print(f"# total params = {sum(p.numel() for p in self.parameters()):,}")
-        print(f"# learnable params = {sum(p.numel() for p in self.parameters() if p.requires_grad):,}")
-        print(f"# mol encoder params: {sum(p.numel() for p in self.mol_encoder.parameters()):,}")
 
     def forward(self, x_in, mol_data=None, return_conf_data=False, return_attn_map=False):
 

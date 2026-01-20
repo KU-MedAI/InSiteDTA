@@ -42,16 +42,36 @@ pip install torch_scatter torch_cluster -f https://data.pyg.org/whl/torch-2.5.1+
 ## Quick Start
 ```bash
 python inference.py \
-    --protein_pdb <path_to_protein.pdb> \
+    --pdb_path <path_to_protein.pdb> \
     --smiles <ligand_smiles>
 ```
 
 **Example:**
 ```bash
 python inference.py \
-    --protein_pdb ./src/sample/1bzc_protein.pdb \
+    --pdb_path ./src/data/sample/1bzc_protein.pdb \
     --smiles "[O-]C(=O)CC[C@@H](C(=O)N)NC(=O)c1ccc2c(c1)ccc(c2)C(P(=O)([O-])[O-])(F)F"
 ```
+
+## Reproduce Paper Results
+
+Run evaluation on three benchmark datasets:
+```bash
+# Evaluate on Coreset_crystal
+python reproduce.py --data crystal --device 0
+
+# Evaluate on Coreset_redocked  
+python reproduce.py --data redocked --device 0
+
+# Evaluate on Coreset_p2rank
+python reproduce.py --data p2rank --device 0
+```
+
+The script will:
+1. Prepare ligand features from SMILES
+2. Voxelize protein structures
+3. Evaluate with three trained models
+4. Report performance metrics (PCC, RMSE, MAE)
 
 ## Output
 

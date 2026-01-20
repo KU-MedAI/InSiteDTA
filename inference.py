@@ -9,14 +9,14 @@ import torch
 from torch_geometric.data import Batch
 
 from src.model.model import InSiteDTA
-from src.input_prep.generate_mol_object import generate_mol_object, generate_conformers
-from src.input_prep.ligand_featurization import encode_ligand_to_Data
-from src.input_prep.protein_voxelization import ProteinVoxelizer
+from src.preprocess.generate_mol_object import generate_mol_object, generate_conformers
+from src.preprocess.ligand_featurization import encode_ligand_to_Data
+from src.preprocess.protein_voxelization import ProteinVoxelizer
 
 
 def get_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--protein_pdb", type=str, required=True, help="Path to protein PDB file")
+    parser.add_argument("--pdb_path", type=str, required=True, help="Path to protein PDB file")
     parser.add_argument("--smiles", type=str, required=True, help="SMILES string of the ligand")
     parser.add_argument("--ckpt", type=str, default="./src/model/ckpt/run_2.pt", help="Path to model checkpoint file")
     return parser.parse_args()
@@ -49,10 +49,10 @@ def prep_single_ligand(smiles):
 #         with open(out_path, 'wb') as fp:
 #             pickle.dump(m, fp)
 
-def prep_single_protein(protein_pdb: str, device="cuda:0"):
+def prep_single_protein(pdb_path: str, device="cuda:0"):
     pv = ProteinVoxelizer(voxel_size=2, n_voxels=32)
     voxel, center = pv.voxelize_inference(
-        protein_path = protein_pdb
+        protein_path = pdb_path
     )
     return voxel, center
 
@@ -146,7 +146,7 @@ def inference_single(voxel, mol, ckpt, device):
 
 def main():
     args = get_arguments()
-    voxel, center = prep_single_protein(args.protein_pdb)
+    voxel, center = prep_single_protein(args.pdb_path)
     mol = prep_single_ligand(smiles=args.smiles)
     pred_aff, pred_poc = inference_single(voxel, mol, ckpt=args.ckpt, device="cuda:0")
     print(f"Predicted Binding Affinity: {round(pred_aff.item(),4)} (pK)")

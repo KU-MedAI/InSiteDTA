@@ -11,6 +11,7 @@ import warnings
 from Bio import BiopythonWarning
 
 warnings.simplefilter("ignore", BiopythonWarning)
+openbabel.obErrorLog.SetOutputLevel(0)
 
 
 def parse_arguments():

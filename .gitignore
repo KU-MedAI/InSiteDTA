@@ -28,3 +28,6 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# Custom
+model_input_*
