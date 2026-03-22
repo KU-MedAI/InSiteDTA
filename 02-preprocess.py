@@ -67,6 +67,24 @@ def get_arguments():
         default=0,
         help="GPU index to use while protein voxelization",
     )
+    parser.add_argument(
+        "--label_radius",
+        type=float,
+        default=2.0,
+        help="Radius for pocket labeling in voxelization (0 for exact voxel matching)",
+    )
+    parser.add_argument(
+        "--ptn_dirname",
+        type=str,
+        default="input_protein",
+        help="Directory name under save_dir for voxelized protein files",
+    )
+    parser.add_argument(
+        "--lig_dirname",
+        type=str,
+        default="input_ligand",
+        help="Directory name under save_dir for featurized ligand files",
+    )
 
     # data split args
     parser.add_argument(
@@ -153,6 +171,7 @@ def voxelize_protein(
     voxel_size: int = 2,
     n_voxels: int = 32,
     device=0,
+    label_radius: float = 2.0,
 ) -> None:
     os.makedirs(save_dir, exist_ok=True)
 
@@ -185,6 +204,7 @@ def voxelize_protein(
             r_cutoff=4.0,
             device=device,
             batch_size=8192,
+            label_radius=label_radius,
         )
 
         # TODO: channel 위치 미리 조절
@@ -275,8 +295,8 @@ def main():
     print_args(args)
 
     pdb_id_ls = collect_pdb_ids(args.raw_dir, args.data_structure)
-    save_dir_lig = args.save_dir + "/input_ligand"
-    save_dir_ptn = args.save_dir + "/input_protein"
+    save_dir_lig = os.path.join(args.save_dir, args.lig_dirname)
+    save_dir_ptn = os.path.join(args.save_dir, args.ptn_dirname)
 
 
     featurize_ligand(
@@ -290,6 +310,7 @@ def main():
         save_dir=save_dir_ptn,
         voxel_size=args.voxel_size,
         n_voxels=args.n_voxels,
+        label_radius=args.label_radius,
     )
 
     generate_data_cfg(
