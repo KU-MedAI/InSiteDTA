@@ -4,8 +4,8 @@
     "voxel_size": 2,
     "n_voxels": 32,
     "index_file": "src/data/index/affinity_index_pdbbind2020.json",
-    "vox_dir": "/data/hawon/insite-git-test/input_protein",
-    "lig_dir": "/data/hawon/insite-git-test/input_ligand",
+    "vox_dir": "/data/hawon/InSiteDTA_baselines/InSiteDTA/voxel_rad0",
+    "lig_dir": "/data/hawon/InSiteDTA_baselines/InSiteDTA/input_ligand",
     "val_size": 0.075,
     "tr_keys": [
         "3cz1",

@@ -18,7 +18,8 @@ from src.scripts.utils import print_args
 
 def get_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data", type=str, choices=["crystal", "redocked", "p2rank"], required=True, help="Coreset types to evaluate InSiteDTA")
+    parser.add_argument("--scenario", type=str, choices=["crystal", "redocked", "p2rank", "boltz2", "alphafold"], required=True, help="Coreset scenario to evaluate")
+    parser.add_argument("--ckpt", type=str, nargs="+", required=True, help="Path(s) to model checkpoint(s)")
     parser.add_argument("--batch_size", type=int, default=64, help="Bacth size for inference")
     parser.add_argument("--device", type=int, default=0, help="GPU device to use")
     return parser.parse_args()
@@ -42,16 +43,16 @@ def prep_ligand(smi_csv, input_dir="./model_input"):
         with open(out_path, 'wb') as fp:
             pickle.dump(m, fp)
 
-def prep_protein(data_dir, input_dir="./model_input", device="cuda:0"):
-    os.makedirs(f"{input_dir}/proteins", exist_ok=True)
+def prep_protein(data_dir, input_dir="./model_input", device="cuda:0", scenario="crystal"):
+    os.makedirs(f"{input_dir}/proteins_{scenario}", exist_ok=True)
     pdb_id_ls = sorted(os.listdir(data_dir))
     # protein preparation
     for pdb_id in tqdm(pdb_id_ls, desc="2. Preparing proteins"):
         pv = ProteinVoxelizer(voxel_size=2, n_voxels=32)
         ptn_path = f"{data_dir}/{pdb_id}/{pdb_id}_protein.pdb"
         poc_path = f"{data_dir}/{pdb_id}/{pdb_id}_pocket.pdb"
-        out_data_name = os.path.join(f"{input_dir}/proteins/{pdb_id}_voxel_label_dim22.pkl")
-        out_center_name = os.path.join(f"{input_dir}/proteins/{pdb_id}_center_coords.pkl")
+        out_data_name = os.path.join(f"{input_dir}/proteins_{scenario}/{pdb_id}_voxel.pkl")
+        out_center_name = os.path.join(f"{input_dir}/proteins_{scenario}/{pdb_id}_center.pkl")
         
         if os.path.exists(out_data_name) and os.path.exists(out_center_name):
             continue
@@ -72,7 +73,7 @@ def prep_protein(data_dir, input_dir="./model_input", device="cuda:0"):
             pickle.dump(center, fp)
 
 def inference(lig_dir="./model_input/ligands", ptn_dir="./model_input/proteins", device="cuda:0", batch_size=64, index=None, ckpt=None, desc=None):
-    _get_paths = lambda x: [os.path.join(x, f) for f in sorted(os.listdir(x)) if f.endswith("_ligand.pkl") or f.endswith("_dim22.pkl")]
+    _get_paths = lambda x: [os.path.join(x, f) for f in sorted(os.listdir(x)) if f.endswith("_ligand.pkl") or f.endswith("_voxel.pkl")]
     _crop_ids = lambda x: os.path.basename(x).split("_")[0]
     
     lig_paths = _get_paths(lig_dir)
@@ -143,28 +144,25 @@ def inference(lig_dir="./model_input/ligands", ptn_dir="./model_input/proteins",
 
 def main():
     args = get_arguments()
-    data = args.data
+    scenario = args.scenario
     device = f"cuda:{args.device}" if torch.cuda.is_available() else "cpu"; args.device = device
     batch_size = args.batch_size
     print_args(args)
     
     index = "./src/data/index/affinity_index_pdbbind2020.json"
-    ckpt_ls = [
-        "./src/ckpt/run_1.pt",
-        "./src/ckpt/run_2.pt",
-        "./src/ckpt/run_3.pt"
-    ]
-    data_dir = f"./src/data/coreset_{data}"
+    ckpt_ls = args.ckpt
+
     smi_csv = "./src/data/index/ligand_smiles_coreset.csv"
-    input_dir = f"./model_input_{data}"
+    data_dir = f"./src/data/coreset_{scenario}"
+    input_dir = f"./model_input"
 
     prep_ligand(smi_csv=smi_csv, input_dir=input_dir)
-    prep_protein(data_dir=data_dir, input_dir=input_dir, device=device)
+    prep_protein(data_dir=data_dir, input_dir=input_dir, device=device, scenario=scenario)
 
     aggr_results = {'pcc': [], 'rmse': [], 'mae': []}
     for i, ckpt in enumerate(ckpt_ls):
-        desc = f"3-{i+1}. Evaluating InSiteDTA ({i+1}/3) on coreset_{data}"
-        pred, target = inference(lig_dir=f"{input_dir}/ligands", ptn_dir=f"{input_dir}/proteins", batch_size=batch_size, device=device, index=index, ckpt=ckpt, desc=desc)
+        desc = f"3-{i+1}. Evaluating InSiteDTA ({i+1}/{len(ckpt_ls)}) on coreset_{scenario}"
+        pred, target = inference(lig_dir=f"{input_dir}/ligands", ptn_dir=f"{input_dir}/proteins_{scenario}", batch_size=batch_size, device=device, index=index, ckpt=ckpt, desc=desc)
         pcc, rmse, mae = calc_metrics(pred, target)
         aggr_results['pcc'].append(pcc)
         aggr_results['rmse'].append(rmse)
