@@ -5,7 +5,7 @@ import argparse
 
 def print_args(args: argparse.Namespace):
     script_name = os.path.basename(inspect.stack()[1].filename)
-    max_len = max([len(str(k) + str(v)) for k, v in vars(args).items()]) + 10
+    max_len = min(max([len(str(k) + str(v)) for k, v in vars(args).items()]) + 10, 80)
 
     print("+" + "-" * max_len + "+")
     print("| " + f"{script_name} configuration".ljust(max_len - 2) + " |")

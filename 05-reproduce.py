@@ -79,21 +79,26 @@ def inference(lig_dir="./model_input/ligands", ptn_dir="./model_input/proteins",
     lig_paths = _get_paths(lig_dir)
     ptn_paths = _get_paths(ptn_dir)
     
-    # check whether lig/ptn keys matched
-    lig_keys = [_crop_ids(l) for l in lig_paths]
-    ptn_keys = [_crop_ids(p) for p in ptn_paths if p.endswith("")]
-    
-    # check validity
-    if len(lig_keys) != len(ptn_keys):
-        raise RuntimeError("Ligand/protein data size are not identical.")
-    if any([lig_keys[i] != ptn_keys[i] for i in range(len(lig_keys))]):
-        raise RuntimeError("Ligand/protein data key are not identical.")
+    lig_map = {_crop_ids(l): l for l in lig_paths}
+    ptn_map = {_crop_ids(p): p for p in ptn_paths}
+
+    common_keys = sorted(set(lig_map.keys()) & set(ptn_map.keys()))
+    n_lig_only = len(lig_map) - len(common_keys)
+    n_ptn_only = len(ptn_map) - len(common_keys)
+
+    if not common_keys:
+        raise RuntimeError("No matching ligand/protein pairs found.")
+    if n_lig_only > 0 or n_ptn_only > 0:
+        print(f"  [INFO] lig={len(lig_map)}, ptn={len(ptn_map)} → {len(common_keys)} paired ({n_lig_only} lig-only, {n_ptn_only} ptn-only skipped)")
+
+    lig_paths = [lig_map[k] for k in common_keys]
+    ptn_paths = [ptn_map[k] for k in common_keys]
     
     # load index
     total_target_ba = []
     with open(index, "r") as fp:
         index = json.load(fp)
-    for p in ptn_keys:
+    for p in common_keys:
         total_target_ba.append(index[p])
         
     # ligand load & featurization
