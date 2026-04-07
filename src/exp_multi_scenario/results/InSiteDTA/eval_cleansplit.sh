@@ -1,0 +1,4 @@
+# Run on repo root
+python 04-evaluate.py --ckpt src/exp_multi_scenario/results/InSiteDTA/260324-140848_data_config_CleanSplit0.pt --result_file src/exp_multi_scenario/results/InSiteDTA/260324-140848_data_config_CleanSplit0_results.json --save_dir src/exp_multi_scenario/results/InSiteDTA/
+python 04-evaluate.py --ckpt src/exp_multi_scenario/results/InSiteDTA/260324-194023_data_config_CleanSplit0.pt --result_file src/exp_multi_scenario/results/InSiteDTA/260324-194023_data_config_CleanSplit0_results.json --save_dir src/exp_multi_scenario/results/InSiteDTA/
+python 04-evaluate.py --ckpt src/exp_multi_scenario/results/InSiteDTA/260325-005050_data_config_CleanSplit0.pt --result_file src/exp_multi_scenario/results/InSiteDTA/260325-005050_data_config_CleanSplit0_results.json --save_dir src/exp_multi_scenario/results/InSiteDTA/

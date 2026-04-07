@@ -1,0 +1,4 @@
+# Run on repo root
+python 04-evaluate.py --ckpt src/exp_multi_scenario/results/InSiteDTA/260323-233405_data_config_PDBbind2016.pt --result_file src/exp_multi_scenario/results/InSiteDTA/260323-233405_data_config_PDBbind2016_results.json --save_dir src/exp_multi_scenario/results/InSiteDTA/
+python 04-evaluate.py --ckpt src/exp_multi_scenario/results/InSiteDTA/260323-233506_data_config_PDBbind2016.pt --result_file src/exp_multi_scenario/results/InSiteDTA/260323-233506_data_config_PDBbind2016_results.json --save_dir src/exp_multi_scenario/results/InSiteDTA/
+python 04-evaluate.py --ckpt src/exp_multi_scenario/results/InSiteDTA/260324-045633_data_config_PDBbind2016.pt --result_file src/exp_multi_scenario/results/InSiteDTA/260324-045633_data_config_PDBbind2016_results.json --save_dir src/exp_multi_scenario/results/InSiteDTA/

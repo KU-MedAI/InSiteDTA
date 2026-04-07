@@ -1,0 +1,12 @@
+Metric,Value
+Experiment Name,260323-233405_data_config_PDBbind2016
+Total Loss,0.8863
+Pocket Loss,0.2735
+Binding Affinity Loss,1.6967
+DCC_0.5,3.6818
+DCC_0.5_SR_4.0,0.8211
+DVO_0.5,0.5697
+DCC_nan_count,0
+PCC,0.8065
+RMSE,1.3026
+MAE,0.9962

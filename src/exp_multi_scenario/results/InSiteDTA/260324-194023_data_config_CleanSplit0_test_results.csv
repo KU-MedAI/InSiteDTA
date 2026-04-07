@@ -1,0 +1,12 @@
+Metric,Value
+Experiment Name,260324-194023_data_config_CleanSplit0
+Total Loss,0.9963
+Pocket Loss,0.2931
+Binding Affinity Loss,2.0499
+DCC_0.5,4.1410
+DCC_0.5_SR_4.0,0.7965
+DVO_0.5,0.5475
+DCC_nan_count,0
+PCC,0.7561
+RMSE,1.4318
+MAE,1.1405

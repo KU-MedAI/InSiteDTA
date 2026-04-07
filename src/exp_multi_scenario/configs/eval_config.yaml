@@ -1,0 +1,85 @@
+# Multi-scenario evaluation pipeline configuration
+
+# Which splits and scenarios to evaluate
+split: "original"                                                     # "original" | "cleansplit"
+scenarios: ["crystal", "redocked", "p2rank", "alphafold"]            # available: crystal, redocked, p2rank, alphafold
+models: ["InSiteDTA"]                                                 # models to evaluate this run
+
+device: 0
+data_root: "/data/hawon/InSiteDTA_baselines"
+result_dir: "src/exp_multi_scenario/results"
+
+# Split definitions: split name → data files
+# scenario data dirs are resolved as src/data/coreset_{scenario}/
+split_configs:
+  original:
+    data_config: "src/data/datasplit_preset/data_config_PDBbind2016.json"
+    affinity_index: "src/data/index/affinity_index_pdbbind2020.json"
+    smiles_csv: "src/data/index/ligand_smiles_coreset.csv"
+  cleansplit:
+    data_config: "src/data/datasplit_preset/data_config_CleanSplit0.json"
+    affinity_index: "src/data/index/affinity_index_pdbbind2020.json"
+    smiles_csv: "src/data/index/ligand_smiles_pdbbind2020.csv"
+
+# Per-model settings
+# Use either 'python' (uv venv path) or 'conda_env' — 'python' takes precedence
+model_configs:
+  InSiteDTA:
+    python: "/data/hawon/venvs/insitedta/bin/python"   # uv venv
+    eval_script: "src/exp_multi_scenario/baselines/InSiteDTA/eval_wrapper.py"
+    batch_size: 64
+    ckpts:
+      original:
+        - "src/ckpt/run_1.pt"
+        - "src/ckpt/run_2.pt"
+        - "src/ckpt/run_3.pt"
+      cleansplit: []  # TODO: add after CleanSplit training
+
+  Pafnucy:
+    python: "/data/hawon/venvs/pafnucy/bin/python"
+    eval_script: "src/exp_multi_scenario/baselines/Pafnucy/eval_wrapper.py"
+    batch_size: 64
+    ckpts:
+      original: []
+      cleansplit: []
+
+  CheapNet:
+    python: "/home/tech/anaconda3/envs/cheapcross/bin/python"
+    eval_script: "src/exp_multi_scenario/baselines/CheapNet/eval_wrapper.py"
+    batch_size: 128
+    ckpts:
+      original: []
+      cleansplit: []
+
+  PLANET:
+    python: "/data/hawon/venvs/planet/bin/python"
+    eval_script: "src/exp_multi_scenario/baselines/PLANET/eval_wrapper.py"
+    batch_size: 64
+    ckpts:
+      original: []
+      cleansplit: []
+
+  CAPLA:
+    python: "/data/hawon/venvs/capla/bin/python"
+    eval_script: "src/exp_multi_scenario/baselines/CAPLA/eval_wrapper.py"
+    batch_size: 64
+    ckpts:
+      original: []
+      cleansplit: []
+
+  DeepDTA:
+    python: "/data/hawon/venvs/deepdta/bin/python"
+    eval_script: "src/exp_multi_scenario/baselines/DeepDTA/eval_wrapper.py"
+    batch_size: 128
+    ckpts:
+      original: []
+      cleansplit: []
+
+  GEMS:
+    python: "/data/hawon/venvs/gems/bin/python"
+    eval_script: "src/exp_multi_scenario/baselines/GEMS/eval_wrapper.py"
+    batch_size: 64
+    ckpts:
+      original: []
+      cleansplit:
+        - "model/GEMS18d_B6AEPL_kikdic_d0500_0_f0_best_stdict.pt"  # fold 0 only

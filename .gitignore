@@ -36,5 +36,8 @@ test_scripts.sh
 wandb/
 pdbbind_2016/
 src/p2rank/
-CLAUDE.md
-src/exp_multi_scenario
+*.sdf
+*.pdb
+src/exp_multi_scenario/colabfold
+src/exp_multi_scenario/baselines
+
