@@ -38,9 +38,5 @@ pdbbind_2016/
 src/p2rank/
 *.sdf
 *.pdb
-src/exp_multi_scenario/baselines
-src/exp_multi_scenario/colabfold
-src/exp_multi_scenario/configs
-src/exp_multi_scenario/results
 claude.md
 
