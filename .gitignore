@@ -39,4 +39,5 @@ src/p2rank/
 *.sdf
 *.pdb
 src/exp_multi_scenario/
+claude.md
 
