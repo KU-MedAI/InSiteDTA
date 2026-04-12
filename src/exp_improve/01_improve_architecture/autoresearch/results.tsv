@@ -1,0 +1,10 @@
+commit	val_PCC	val_DCC_SR	memory_gb	epochs	status	description
+0ef7008	0.650342	0.705250	31.3	15	keep	baseline (attnfp+schnet+egnn, 5 conformers)
+37e6f6a	0.654912	0.704022	24.5	15	keep	drop EGNN, attnfp+schnet only
+-	0.650895	0.699110	21.1	15	discard	attnfp only (SchNet 제거)
+-	0.639171	0.705250	24.4	15	discard	schnet only (AttnFP 제거)
+-	0.651301	0.688671	24.5	15	discard	hard binary pocket mask (threshold 0.5)
+-	0.644074	0.699724	24.5	15	discard	detach 제거 (soft mask, gradient flow)
+-	0.624368	0.507829	24.5	15	discard	hard binary + STE (DCC_SR 붕괴)
+-	0.710995	0.751919	24.5	50	keep	baseline calibration (attnfp+schnet, 50ep)
+-	0.711426	0.755603	24.5	50	keep	detach 제거 (soft mask, gradient flow, 50ep)
