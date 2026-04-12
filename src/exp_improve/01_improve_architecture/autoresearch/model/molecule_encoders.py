@@ -168,23 +168,10 @@ class IntegratedMolEncoder(nn.Module):
                 enc_3d_per_conf = enc_3d_out.split(batch_size, dim=0)
                 enc_3d_stack = torch.stack(enc_3d_per_conf, dim=1)  # [batch_size, num_confs, out_channels]
 
-                # Get corresponding query token (same index as encoder)
-                attn_query = self.attn_queries[idx]
-                
-                # Cross-attention: learnable query token attending to conformer features
-                q = attn_query.expand(batch_size, -1, -1)  # [batch_size, 1, out_channels]
-                kv = attn_3d(enc_3d_stack)  # [batch_size, num_confs, out_channels * 2]
-                k, v = kv.chunk(2, dim=-1)  # Each: [batch_size, num_confs, out_channels]
-                
-                # Compute attention scores (following cross_attention.py style)
-                scale = k.size(-1) ** -0.5
-                logits = (q @ k.transpose(-2, -1)) * scale  # [batch_size, 1, num_confs]
-                attn = F.softmax(logits, dim=-1)
-                
-                # Compute attention output
-                weighted_sum = (attn @ v).squeeze(1)  # [batch_size, out_channels]
+                # Simple mean pooling over conformers
+                mean_pooled = enc_3d_stack.mean(dim=1)  # [batch_size, out_channels]
 
-                encoder_outputs.append(weighted_sum)
+                encoder_outputs.append(mean_pooled)
 
             mol_features = torch.stack(encoder_outputs, dim=1)
 

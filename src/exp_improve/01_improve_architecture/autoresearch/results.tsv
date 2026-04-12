@@ -6,5 +6,7 @@ commit	val_PCC	val_DCC_SR	memory_gb	epochs	status	description
 -	0.651301	0.688671	24.5	15	discard	hard binary pocket mask (threshold 0.5)
 -	0.644074	0.699724	24.5	15	discard	detach 제거 (soft mask, gradient flow)
 -	0.624368	0.507829	24.5	15	discard	hard binary + STE (DCC_SR 붕괴)
--	0.710995	0.751919	24.5	50	keep	baseline calibration (attnfp+schnet, 50ep)
--	0.711426	0.755603	24.5	50	keep	detach 제거 (soft mask, gradient flow, 50ep)
+37e6f6a	0.710995	0.751919	24.5	50	keep	baseline calibration (attnfp+schnet, 50ep)
+17329f7	0.711426	0.755603	24.5	50	keep	detach 제거 (soft mask, gradient flow, 50ep)
+-	0.711183	0.753147	24.5	50	keep	conformer mean pooling (learnable attn 제거, simpler)
+-	0.704520	0.754682	24.4	50	discard	L2Pocket heads 8→4
