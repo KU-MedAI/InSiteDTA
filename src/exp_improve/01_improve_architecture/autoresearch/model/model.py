@@ -212,9 +212,7 @@ class InSiteDTA(nn.Module):
             activation=dec_act
         )
 
-        self.attention_pooling = SpatialAttentionPooling(
-            dim=self.hidden_sizes[2]
-        )
+        self.attention_pooling = nn.AdaptiveAvgPool3d(1)
 
         self.seq_attn_pooling = SequentialAttentionPooling(dim=self.mol_feature_dim)
 
@@ -265,7 +263,7 @@ class InSiteDTA(nn.Module):
             )
 
         # Binding affinity regression head
-        pooled_features_p2l = self.attention_pooling(bottleneck_p2l)
+        pooled_features_p2l = self.attention_pooling(bottleneck_p2l).flatten(1)
         pooled_features_l2pocket = self.seq_attn_pooling(l2pocket)
 
 
