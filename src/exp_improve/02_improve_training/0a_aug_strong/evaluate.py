@@ -38,7 +38,7 @@ def get_arguments():
     parser.add_argument(
         "--save_dir",
         type=str,
-        default=os.path.join(_SCRIPT_DIR, "../../results/02_improve_training"),
+        default=os.path.join(_MODEL_DIR, "../results/02_improve_training"),
         help="Directory to save evaluation results.",
     )
     parser.add_argument("--device", type=int, default=0, help="GPU device ID to use")

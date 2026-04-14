@@ -98,7 +98,7 @@ def get_arguments():
     parser.add_argument(
         "--save_dir",
         type=str,
-        default=os.path.join(_SCRIPT_DIR, "../../ckpts/02_improve_training/0b_aug_struct_robust"),
+        default=os.path.join(_MODEL_DIR, "../ckpts/02_improve_training/0a_aug_strong"),
         help="Output directory to save best model validation results and checkpoint",
     )
     parser.add_argument(
