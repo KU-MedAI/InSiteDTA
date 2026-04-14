@@ -22,10 +22,10 @@ from torch import optim
 from torch.amp.autocast_mode import autocast
 from torch.amp.grad_scaler import GradScaler
 
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-_REPO_ROOT = os.path.abspath(os.path.join(_SCRIPT_DIR, "../../../.."))
+_MODEL_DIR = os.path.dirname(os.path.abspath(__file__)) + "/../"
+_REPO_ROOT = os.path.abspath(os.path.join(_MODEL_DIR, "../../../"))
 sys.path.insert(0, _REPO_ROOT)
-sys.path.insert(0, _SCRIPT_DIR)
+sys.path.insert(0, _MODEL_DIR)
 
 from src.scripts.dataloader import MasterDataLoader
 from model import InSiteDTA
