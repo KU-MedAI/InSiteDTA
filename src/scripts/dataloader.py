@@ -103,7 +103,7 @@ def collate_as_dict(items: list) -> dict[str, any]:
 
 
 class MasterDataLoader:
-    def __init__(self, data_cfg, seed, batch_size, num_workers):
+    def __init__(self, data_cfg, seed, batch_size, num_workers, num_conformers=5):
 
         self.index_dict = {}
         if data_cfg["index_file"]:
@@ -120,6 +120,7 @@ class MasterDataLoader:
         self.seed = seed
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.num_conformers = num_conformers
 
     def get_zip_paths(self, keys: list, desc: Literal["training", "validation", "test"]) -> list[tuple[str, str]]:
         # Find preprocessed voxel and ligand files and matching them
@@ -159,10 +160,10 @@ class MasterDataLoader:
         )
 
         tr_dataset = CustomDataset(
-            zip_paths=tr_zip_paths, index_dict=self.index_dict, desc="training"
+            zip_paths=tr_zip_paths, index_dict=self.index_dict, desc="training", num_conformers=self.num_conformers
         )
         vl_dataset = CustomDataset(
-            zip_paths=vl_zip_paths, index_dict=self.index_dict, desc="validation"
+            zip_paths=vl_zip_paths, index_dict=self.index_dict, desc="validation", num_conformers=self.num_conformers
         )
         return tr_dataset, vl_dataset
 
@@ -206,7 +207,7 @@ class MasterDataLoader:
         )
 
         ts_dataset = CustomDataset(
-            zip_paths=ts_zip_paths, index_dict=self.index_dict, desc="test"
+            zip_paths=ts_zip_paths, index_dict=self.index_dict, desc="test", num_conformers=self.num_conformers
         )
         return ts_dataset
 

@@ -22,6 +22,7 @@ def get_arguments():
     parser.add_argument("--ckpt", type=str, nargs="+", required=True, help="Path(s) to model checkpoint(s)")
     parser.add_argument("--batch_size", type=int, default=64, help="Bacth size for inference")
     parser.add_argument("--device", type=int, default=0, help="GPU device to use")
+    parser.add_argument("--center_method", type=str, default="intelligent", choices=["intelligent", "protein"], help="Voxel grid center: 'intelligent' (shift toward pocket) or 'protein' (protein geometric center)")
     return parser.parse_args()
 
 
@@ -43,26 +44,31 @@ def prep_ligand(smi_csv, input_dir="./model_input"):
         with open(out_path, 'wb') as fp:
             pickle.dump(m, fp)
 
-def prep_protein(data_dir, input_dir="./model_input", device="cuda:0", scenario="crystal"):
+def prep_protein(data_dir, input_dir="./model_input", device="cuda:0", scenario="crystal", center_method="intelligent"):
     os.makedirs(f"{input_dir}/proteins_{scenario}", exist_ok=True)
     pdb_id_ls = sorted(os.listdir(data_dir))
+    pv = ProteinVoxelizer(voxel_size=2, n_voxels=32)
     # protein preparation
     for pdb_id in tqdm(pdb_id_ls, desc="2. Preparing proteins"):
-        pv = ProteinVoxelizer(voxel_size=2, n_voxels=32)
         ptn_path = f"{data_dir}/{pdb_id}/{pdb_id}_protein.pdb"
         poc_path = f"{data_dir}/{pdb_id}/{pdb_id}_pocket.pdb"
         out_data_name = os.path.join(f"{input_dir}/proteins_{scenario}/{pdb_id}_voxel.pkl")
         out_center_name = os.path.join(f"{input_dir}/proteins_{scenario}/{pdb_id}_center.pkl")
-        
+
         if os.path.exists(out_data_name) and os.path.exists(out_center_name):
             continue
-        
+
+        defined_center = None
+        if center_method == "protein":
+            defined_center = pv.calc_protein_center(ptn_path)
+
         voxel, label, center = pv.voxelize_gpu_v2(
                             protein_path=ptn_path,
                             pocket_path=poc_path,
                             r_cutoff=4.0,
                             device=device,
-                            batch_size=8192
+                            batch_size=8192,
+                            defined_center=defined_center,
                         )
         
         protein_data = np.concatenate((voxel, label), axis=3).astype(np.float16)
@@ -162,7 +168,7 @@ def main():
     input_dir = f"./model_input"
 
     prep_ligand(smi_csv=smi_csv, input_dir=input_dir)
-    prep_protein(data_dir=data_dir, input_dir=input_dir, device=device, scenario=scenario)
+    prep_protein(data_dir=data_dir, input_dir=input_dir, device=device, scenario=scenario, center_method=args.center_method)
 
     aggr_results = {'pcc': [], 'rmse': [], 'mae': []}
     for i, ckpt in enumerate(ckpt_ls):

@@ -74,6 +74,13 @@ def get_arguments():
         help="Radius for pocket labeling in voxelization (0 for exact voxel matching)",
     )
     parser.add_argument(
+        "--center_method",
+        type=str,
+        default="intelligent",
+        choices=["intelligent", "protein"],
+        help="Voxel grid center method: 'intelligent' (shift toward pocket) or 'protein' (protein geometric center)",
+    )
+    parser.add_argument(
         "--ptn_dirname",
         type=str,
         default="input_protein",
@@ -172,6 +179,7 @@ def voxelize_protein(
     n_voxels: int = 32,
     device=0,
     label_radius: float = 2.0,
+    center_method: str = "intelligent",
 ) -> None:
     os.makedirs(save_dir, exist_ok=True)
 
@@ -198,6 +206,10 @@ def voxelize_protein(
         if os.path.exists(out_voxel_name) and os.path.exists(out_center_name):
             continue
 
+        defined_center = None
+        if center_method == "protein":
+            defined_center = pv.calc_protein_center(ptn_path)
+
         voxel, label, center = pv.voxelize_gpu_v2(
             protein_path=ptn_path,
             pocket_path=poc_path,
@@ -205,6 +217,7 @@ def voxelize_protein(
             device=device,
             batch_size=8192,
             label_radius=label_radius,
+            defined_center=defined_center,
         )
 
         # TODO: channel 위치 미리 조절
@@ -299,9 +312,9 @@ def main():
     save_dir_ptn = os.path.join(args.save_dir, args.ptn_dirname)
 
 
-    featurize_ligand(
-        smiles_csv=args.smiles_csv, pdb_id_ls=pdb_id_ls, save_dir=save_dir_lig
-    )
+    # featurize_ligand(
+    #     smiles_csv=args.smiles_csv, pdb_id_ls=pdb_id_ls, save_dir=save_dir_lig
+    # )
 
     voxelize_protein(
         data_structure=args.data_structure,
@@ -311,20 +324,21 @@ def main():
         voxel_size=args.voxel_size,
         n_voxels=args.n_voxels,
         label_radius=args.label_radius,
+        center_method=args.center_method,
     )
 
-    generate_data_cfg(
-        pdb_id_ls=pdb_id_ls,
-        prep_dir_lig=save_dir_lig,
-        prep_dir_ptn=save_dir_ptn,
-        save_dir=args.save_dir,
-        seed=args.seed,
-        index_file=args.index_file,
-        val_size=args.val_size,
-        test_key_file=args.test_key_file,
-        voxel_size=args.voxel_size,
-        n_voxels=args.n_voxels,
-    )
+    # generate_data_cfg(
+    #     pdb_id_ls=pdb_id_ls,
+    #     prep_dir_lig=save_dir_lig,
+    #     prep_dir_ptn=save_dir_ptn,
+    #     save_dir=args.save_dir,
+    #     seed=args.seed,
+    #     index_file=args.index_file,
+    #     val_size=args.val_size,
+    #     test_key_file=args.test_key_file,
+    #     voxel_size=args.voxel_size,
+    #     n_voxels=args.n_voxels,
+    # )
 
 
 if __name__ == "__main__":

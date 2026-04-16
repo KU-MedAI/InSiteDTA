@@ -102,9 +102,9 @@ def check_usable_lig(lig_path):
     except Exception:
         return False
     
-def encode_ligand_to_Data(mol: Chem.rdchem.Mol):    
-    
-    lpp = LigandPreprocessor(mol)
+def encode_ligand_to_Data(mol: Chem.rdchem.Mol, num_conformers=5):
+
+    lpp = LigandPreprocessor(mol, num_conformers=num_conformers)
     
     # 1. generate ligand_feature (54dim)
     lig_feature = lpp.get_lig_feature(mol, to_tensor=True)
@@ -243,9 +243,10 @@ class LigandPreprocessor:
     
 
 class CustomDataset(Dataset):
-    def __init__(self, zip_paths: list[tuple], index_dict: dict, desc: Literal["training", "validation", "test"]):
+    def __init__(self, zip_paths: list[tuple], index_dict: dict, desc: Literal["training", "validation", "test"], num_conformers=5):
         self.zip_paths = zip_paths
         self.index_dict = index_dict
+        self.num_conformers = num_conformers
         
         # check validity of the ligand pkl file
         self.usable_zip_paths = []
@@ -288,7 +289,7 @@ class CustomDataset(Dataset):
         sample['data_key'] = data_key
         sample["voxel"] = np.transpose(structure, (3, 0, 1, 2)) # channel-first expression
         sample["pocket_label"] = np.transpose(pocket_label, (3, 0, 1, 2)) # channel-first expression
-        sample["lig_data"] = encode_ligand_to_Data(lig_mol)
+        sample["lig_data"] = encode_ligand_to_Data(lig_mol, num_conformers=self.num_conformers)
         sample["true_aff"] = true_aff
 
         return sample

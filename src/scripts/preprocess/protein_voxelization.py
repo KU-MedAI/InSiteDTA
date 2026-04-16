@@ -57,6 +57,14 @@ class ProteinVoxelizer:
         
         self.unidentified_atoms = []
 
+    def calc_protein_center(self, protein_path: str) -> np.ndarray:
+        """Calculate geometric center (mean of coordinates) from protein PDB."""
+        atoms = self.read_protein_features(protein_path)
+        if not atoms:
+            return np.zeros(3)
+        coords = np.array([atom["coords"] for atom in atoms])
+        return np.mean(coords, axis=0)
+
     def read_protein_features(self, pdb_file: str) -> list[dict]:
         """Read atomic coordinates and features using OpenBabel."""
         # [Safety] Handle None or empty path
