@@ -40,3 +40,7 @@ preprocessed_input
 pdbbind_2016
 1d_distill_tau5
 test_scripts.sh
+_archive_chats
+wandb
+src/data/coreset_bdb*
+src/data/coreset_p2rank_top*

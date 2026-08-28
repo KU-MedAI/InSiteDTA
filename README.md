@@ -82,13 +82,21 @@ python 02-preprocess.py \
     --save_dir ./preprocessed \
     --smiles_csv ./smiles.csv \
     --index_file ./affinity.json \
-    --test_key_file ./test_keys.txt \
+    --test_key_file none \
     --voxel_size 2 \
     --n_voxels 32 \
     --device 0
 ```
 
-This generates preprocessed data and `data_config_*.json` in `./preprocessed/`.
+`02-preprocess.py` generates ligand and protein inputs:
+
+- `./preprocessed/input_ligand/{pdb_id}_ligand.pkl`
+- `./preprocessed/input_protein/{pdb_id}_voxel.pkl`
+- `./preprocessed/input_protein/{pdb_id}_center.pkl`
+- `./preprocessed/data_config_YYMMDD-HHMMSS.json`
+
+Set `--test_key_file` to a text file containing one test PDB ID per line, or use
+`none` to create reproducible random validation and test splits using `--seed`.
 
 ### Step 3: Train
 
@@ -115,13 +123,16 @@ python 04-evaluate.py \
     --ckpt ./checkpoints/{experiment_name}_teacher.pt \
     --result_file ./checkpoints/{experiment_name}_results.json \
     --save_dir ./evaluation \
+    --use_tta \
     --device 0
 ```
+
+`--use_tta` enables 6-face TTA. Omit it to run single-orientation evaluation.
 
 The script will:
 
 1. Load the test split defined in the training result file
-2. Run inference on the test set
+2. Run 6-face test-time augmentation and average the affinity predictions and spatially aligned pocket logits
 3. Report performance metrics (PCC, RMSE, MAE, DCC, DCC_SR, DVO)
 4. Save detailed results to `{save_dir}/{experiment_name}_test_results.csv`
 
@@ -130,24 +141,24 @@ The script will:
 Run evaluation across the benchmark scenarios (`--scenario`: `crystal`, `redocked`, `p2rank`, `alphafold`):
 
 ```bash
-# Evaluate on Coreset_crystal
-python 05-reproduce.py --ckpt src/ckpt/CleanSplit_*.pt --scenario crystal --device 0
+# Evaluate on Coreset_crystal with 6-face TTA
+python 05-reproduce.py --ckpt src/ckpt/CleanSplit_*.pt --scenario crystal --use_tta --device 0
 
-# Evaluate on Coreset_redocked  
-python 05-reproduce.py --ckpt src/ckpt/CleanSplit_*.pt --scenario redocked --device 0
+# Evaluate on Coreset_redocked with 6-face TTA
+python 05-reproduce.py --ckpt src/ckpt/CleanSplit_*.pt --scenario redocked --use_tta --device 0
 
-# Evaluate on Coreset_p2rank
-python 05-reproduce.py --ckpt src/ckpt/CleanSplit_*.pt --scenario p2rank --device 0
+# Evaluate on Coreset_p2rank with 6-face TTA
+python 05-reproduce.py --ckpt src/ckpt/CleanSplit_*.pt --scenario p2rank --use_tta --device 0
 
-# Evaluate on Coreset_alphafold
-python 05-reproduce.py --ckpt src/ckpt/CleanSplit_*.pt --scenario alphafold --device 0
+# Evaluate on Coreset_alphafold with 6-face TTA
+python 05-reproduce.py --ckpt src/ckpt/CleanSplit_*.pt --scenario alphafold --use_tta --device 0
 ```
 
 The script will:
 
 1. Prepare ligand features from SMILES
 2. Voxelize protein structures
-3. Evaluate each provided checkpoint (`--ckpt` accepts multiple, e.g. multiple seeds)
+3. Evaluate each provided checkpoint with 6-face TTA (`--ckpt` accepts multiple, e.g. multiple seeds)
 4. Report aggregated metrics — mean ± std (PCC, RMSE, MAE, DCC, DCC_SR, DVO)
 
 ## Output
