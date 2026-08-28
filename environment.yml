@@ -4,8 +4,6 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
-  # Only direct project dependencies are listed here. Conda resolves their
-  # transitive and platform-specific dependencies for the target system.
   - python=3.9
   - biopython=1.78
   - numpy=1.26
