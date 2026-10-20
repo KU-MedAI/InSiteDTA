@@ -12,9 +12,12 @@ from src.scripts.model.model import InSiteDTA
 from src.scripts.preprocess.generate_mol_object import generate_mol_object, generate_conformers
 from src.scripts.preprocess.ligand_featurization import encode_ligand_to_Data
 from src.scripts.preprocess.protein_voxelization import ProteinVoxelizer
+from src.scripts.pocket_evaluation import (
+    evaluate_rank1_pockets,
+    load_equivalent_pockets,
+)
 from src.scripts.utils_inference import calc_metrics
 from src.scripts.utils import print_args
-from src.scripts.utils_train import calc_DCC_with_logit, calc_DVO_with_logit
 
 
 def get_arguments():
@@ -30,12 +33,16 @@ def get_arguments():
     parser.add_argument("--use_tta", action="store_true", help="Enable 6-face TTA: average affinity predictions across 6 axis-aligned rotations of the voxel.")
     parser.add_argument("--dcc_sr_cutoff", type=float, default=4.0, help="DCC success-rate cutoff in Å (DCC_SR@<cutoff>Å).")
     parser.add_argument("--pocket_threshold", type=float, default=0.5, help="Sigmoid threshold for binarizing predicted pocket logits (used by DCC/DVO).")
+    parser.add_argument(
+        "--equivalent_pockets",
+        type=str,
+        default="./src/data/index/pdbbind2016_equivalent_pockets.npz",
+        help="Repository-local equivalent-pocket artifact for crystal/redocked evaluation.",
+    )
     return parser.parse_args()
 
 
-# 6 axis-aligned rotations on voxel [B, C, D, H, W]; affinity is invariant to spatial rotation.
-# For pocket-prediction TTA we apply the inverse rotation per face so the predictions are aligned
-# back to the original frame before averaging.
+# Six axis-aligned rotations on voxel [B, C, D, H, W].
 FACE_ROTATIONS = [
     lambda x: x,                          # 0: front (identity)
     lambda x: x.flip(4),                  # 1: back
@@ -43,15 +50,6 @@ FACE_ROTATIONS = [
     lambda x: x.transpose(2, 4).flip(4),  # 3: right
     lambda x: x.transpose(3, 4),          # 4: top
     lambda x: x.transpose(3, 4).flip(4),  # 5: bottom
-]
-
-FACE_INV_ROTATIONS = [
-    lambda x: x,                          # 0: identity
-    lambda x: x.flip(4),                  # 1: back-1 (self-inverse)
-    lambda x: x.transpose(2, 4),          # 2: left-1 (self-inverse)
-    lambda x: x.flip(4).transpose(2, 4),  # 3: right-1 (apply rev order)
-    lambda x: x.transpose(3, 4),          # 4: top-1 (self-inverse)
-    lambda x: x.flip(4).transpose(3, 4),  # 5: bottom-1
 ]
 
 
@@ -73,7 +71,7 @@ def prep_ligand(smi_csv, input_dir="./model_input"):
         with open(out_path, 'wb') as fp:
             pickle.dump(m, fp)
 
-def prep_protein(data_dir, input_dir="./model_input", device="cuda:0", scenario="crystal", center_method="intelligent", label_radius=2.0, esm_dir=None, pca_path=None):
+def prep_protein(data_dir, input_dir="./model_input", device="cuda:0", scenario="crystal", center_method="protein", label_radius=2.0, esm_dir=None, pca_path=None):
     os.makedirs(f"{input_dir}/proteins_{scenario}", exist_ok=True)
     pdb_id_ls = sorted(os.listdir(data_dir))
     pv = ProteinVoxelizer(voxel_size=2, n_voxels=32)
@@ -128,12 +126,13 @@ def prep_protein(data_dir, input_dir="./model_input", device="cuda:0", scenario=
 
 def inference(lig_dir="./model_input/ligands", ptn_dir="./model_input/proteins",
               device="cuda:0", batch_size=64, index=None, ckpt=None, desc=None,
-              use_tta=False, pocket_threshold=0.5, dcc_sr_cutoff=4.0, voxel_size=2):
+              use_tta=False, pocket_threshold=0.5, dcc_sr_cutoff=4.0, voxel_size=2,
+              equivalent_artifact=None):
     """Run inference for one checkpoint. Returns:
         pred_aff   : Tensor (N,) — affinity predictions
         target_aff : list[float] — true affinities
-        dcc_mean   : mean DCC over samples with non-empty pocket prediction (Å)
-        dcc_sr     : success rate (DCC < dcc_sr_cutoff Å); empty-prediction samples count as failures
+        dcc_mean   : mean DCC over all samples (Å); empty predictions receive the grid-diagonal penalty
+        dcc_sr     : success rate (DCC <= dcc_sr_cutoff Å); empty-prediction samples count as failures
         dvo_mean   : mean DVO over all samples
         nan_count  : number of samples whose predicted pocket was empty
     """
@@ -197,14 +196,12 @@ def inference(lig_dir="./model_input/ligands", ptn_dir="./model_input/proteins",
         pocket_batch_ls.append(pocket_batch)
 
     model = InSiteDTA(out_channels=1)
-    model.load_state_dict(torch.load(ckpt, weights_only=False))
+    model.load_state_dict(torch.load(ckpt, map_location=device, weights_only=False))
     model.to(device)
     model.eval()
     pred_ba_ls = []
-    dcc_ls = []
-    dvo_ls = []
-    nan_count = 0
-    total_count = 0
+    pocket_probability_ls = []
+    pocket_truth_ls = []
 
     with torch.no_grad():
         for lig_batch, ptn_batch, pocket_batch in tqdm(
@@ -213,44 +210,40 @@ def inference(lig_dir="./model_input/ligands", ptn_dir="./model_input/proteins",
         ):
             if use_tta:
                 aff_preds = []
-                poc_preds = []
                 for j, rot_fn in enumerate(FACE_ROTATIONS):
                     rot_ptn = rot_fn(ptn_batch)
                     pred_pocket_rot, pred_ba = model(rot_ptn, lig_batch)
                     if pred_ba.dim() == 0:
                         pred_ba = pred_ba.unsqueeze(0)
                     aff_preds.append(pred_ba)
-                    # invert rotation so all pocket logits live in the original frame
-                    poc_preds.append(FACE_INV_ROTATIONS[j](pred_pocket_rot))
+                    if j == 0:
+                        pocket_probability = torch.sigmoid(pred_pocket_rot)
                 pred_ba     = torch.stack(aff_preds, dim=0).mean(dim=0)
-                pred_pocket = torch.stack(poc_preds, dim=0).mean(dim=0)
             else:
                 pred_pocket, pred_ba = model(ptn_batch, lig_batch)
                 if pred_ba.dim() == 0:
                     pred_ba = pred_ba.unsqueeze(0)
+                pocket_probability = torch.sigmoid(pred_pocket)
             pred_ba_ls.append(pred_ba)
-
-            # pocket metrics (DCC, DVO) per batch
-            dccs, nan_idx = calc_DCC_with_logit(
-                pred_pocket, pocket_batch,
-                voxel_size=voxel_size, threshold=pocket_threshold,
-            )
-            dvos = calc_DVO_with_logit(
-                pred_pocket, pocket_batch, threshold=pocket_threshold,
-            )
-            dcc_ls.append(dccs.detach().cpu())
-            dvo_ls.append(dvos.detach().cpu())
-            nan_count   += len(nan_idx)
-            total_count += pocket_batch.shape[0]
+            pocket_probability_ls.append(pocket_probability.detach().cpu().numpy())
+            pocket_truth_ls.append(pocket_batch.detach().cpu().numpy())
 
     total_pred_ba = torch.concat(pred_ba_ls).cpu()
-    total_dccs    = torch.cat(dcc_ls) if dcc_ls else torch.zeros(0)
-    total_dvos    = torch.cat(dvo_ls) if dvo_ls else torch.zeros(0)
+    pocket_metrics = evaluate_rank1_pockets(
+        np.concatenate(pocket_probability_ls, axis=0),
+        np.concatenate(pocket_truth_ls, axis=0),
+        common_keys,
+        equivalent_artifact=equivalent_artifact,
+        threshold=pocket_threshold,
+        voxel_size=voxel_size,
+    )
+    total_dccs = pocket_metrics["DCC"]
+    total_dvos = pocket_metrics["DVO"]
+    nan_count = int(pocket_metrics["empty_prediction"].sum())
 
-    dcc_mean = float(total_dccs.float().mean()) if total_dccs.numel() else float("nan")
-    # SR denominator includes nan (failure-to-predict) samples
-    dcc_sr   = float((total_dccs < dcc_sr_cutoff).sum()) / max(total_count, 1)
-    dvo_mean = float(total_dvos.float().mean()) if total_dvos.numel() else float("nan")
+    dcc_mean = float(total_dccs.mean())
+    dcc_sr = float((total_dccs <= dcc_sr_cutoff).mean())
+    dvo_mean = float(total_dvos.mean())
 
     return total_pred_ba, total_target_ba, dcc_mean, dcc_sr, dvo_mean, nan_count
 
@@ -268,11 +261,26 @@ def main():
     data_dir = f"./src/data/coreset_{scenario}"
     input_dir = f"./model_input"
 
+    equivalent_artifact = None
+    if scenario in {"crystal", "redocked"}:
+        if args.center_method != "protein" or args.label_radius != 0:
+            raise ValueError(
+                "PDBbind2016 equivalent-pocket evaluation requires "
+                "--center_method protein and --label_radius 0"
+            )
+        expected_keys = sorted(
+            name for name in os.listdir(data_dir)
+            if os.path.isdir(os.path.join(data_dir, name))
+        )
+        equivalent_artifact = load_equivalent_pockets(
+            args.equivalent_pockets, expected_keys=expected_keys,
+        )
+
     prep_ligand(smi_csv=smi_csv, input_dir=input_dir)
     prep_protein(data_dir=data_dir, input_dir=input_dir, device=device, scenario=scenario, center_method=args.center_method, label_radius=args.label_radius, esm_dir=args.esm_dir, pca_path=args.pca_path)
 
     aggr_results = {'pcc': [], 'rmse': [], 'mae': [],
-                    'dcc': [], 'dcc_sr': [], 'dvo': []}
+                    'dcc': [], 'dvo': [], 'dcc_sr': []}
     nan_per_ckpt = []
     for i, ckpt in enumerate(ckpt_ls):
         tta_tag = " [TTA-6faces]" if args.use_tta else ""
@@ -284,20 +292,21 @@ def main():
             use_tta=args.use_tta,
             pocket_threshold=args.pocket_threshold,
             dcc_sr_cutoff=args.dcc_sr_cutoff,
+            equivalent_artifact=equivalent_artifact,
         )
         pcc, rmse, mae = calc_metrics(pred, target)
         # per-ckpt pocket metrics (calc_metrics already printed PCC/RMSE/MAE)
         print(f"  DCC : {round(dcc, 4)} Å")
-        print(f"  SR@{args.dcc_sr_cutoff:g}Å: {round(dcc_sr, 4)}")
         print(f"  DVO : {round(dvo, 4)}")
+        print(f"  SR@{args.dcc_sr_cutoff:g}Å: {round(dcc_sr, 4)}")
         if n_nan > 0:
             print(f"  (empty pocket prediction: {n_nan})")
         aggr_results['pcc'].append(pcc)
         aggr_results['rmse'].append(rmse)
         aggr_results['mae'].append(mae)
         aggr_results['dcc'].append(dcc)
-        aggr_results['dcc_sr'].append(dcc_sr)
         aggr_results['dvo'].append(dvo)
+        aggr_results['dcc_sr'].append(dcc_sr)
         nan_per_ckpt.append(n_nan)
 
     metric_labels = {
@@ -305,11 +314,11 @@ def main():
         'rmse':  'RMSE',
         'mae':   'MAE',
         'dcc':   'DCC (Å)',
-        'dcc_sr': f'DCC_SR@{args.dcc_sr_cutoff:g}Å',
         'dvo':   'DVO',
+        'dcc_sr': f'DCC_SR@{args.dcc_sr_cutoff:g}Å',
     }
     tta_summary = " (with 6-face TTA)" if args.use_tta else ""
-    print(f"4. Aggregated results on {len(ckpt_ls)} different random seeds{tta_summary}:")
+    print(f"\n4. Aggregated results on {len(ckpt_ls)} different random seeds{tta_summary}:")
     for metric, score_ls in aggr_results.items():
         mean = np.array(score_ls).mean()
         std = np.array(score_ls).std(ddof=1) if len(score_ls) > 1 else 0.0

@@ -4,7 +4,8 @@ training cfg file -> training/validation -> ckpt saving (student + EMA teacher)
 
 Self-distillation: an EMA teacher (dropout off) generates soft pocket labels that
 the student (dropout on) is distilled toward. The teacher (*_teacher.pt) is the
-production checkpoint consumed by 01-inference.py / 04-evaluate.py / 05-reproduce.py.
+production checkpoint consumed by 01-inference.py / 04-reproduce.py.
+After training, the saved teacher is evaluated on the configured test split.
 """
 import argparse
 import copy
@@ -25,6 +26,7 @@ from torch.amp.autocast_mode import autocast
 from torch.amp.grad_scaler import GradScaler
 
 from src.scripts.dataloader import MasterDataLoader
+from src.scripts.evaluation import evaluate_test_set
 from src.scripts.model.model import InSiteDTA
 from src.scripts.utils import print_args, parse_to_list
 from src.scripts.utils_train import (
@@ -814,6 +816,7 @@ def save_results(
     summary = {
         "train_config": train_cfg,
         "data_config": data_cfg,
+        "test_metrics": {"status": "pending"},
         "student_metrics": {
             "epochs": metrics[0],
             "best_vl_total_loss": metrics[1],
@@ -849,6 +852,45 @@ def save_results(
         f"Best model and result file have been saved to: {train_cfg['save_dir']}"
     )
     return exp_name
+
+
+def evaluate_saved_teacher(model, mdl, train_cfg, data_cfg, exp_name):
+    """Evaluate only after training results and both checkpoints are saved."""
+    checkpoint = os.path.join(train_cfg["save_dir"], f"{exp_name}_teacher.pt")
+    test_config = {
+        "checkpoint": checkpoint,
+        "use_tta": True,
+        "tta_views": 6,
+        "pocket_view": "original",
+        "pocket_protocol": "legacy_voxel",
+        "voxel_size": data_cfg["voxel_size"],
+        "DCC_threshold": train_cfg["DCC_threshold"],
+        "DVO_threshold": train_cfg["DVO_threshold"],
+        "DCC_SR_threshold": train_cfg["DCC_SR_threshold"],
+    }
+    if not data_cfg.get("ts_keys"):
+        test_metrics = {"status": "skipped", "reason": "No test keys", "n_samples": 0}
+    else:
+        ts_loader = mdl.get_ts_loader()
+        device = torch.device(
+            f"cuda:{train_cfg['device']}" if torch.cuda.is_available() else "cpu"
+        )
+        if len(ts_loader.dataset):
+            model.load_state_dict(torch.load(checkpoint, map_location=device, weights_only=True))
+        test_metrics = evaluate_test_set(
+            model, ts_loader, train_cfg, data_cfg["voxel_size"], device,
+        )
+
+    if test_metrics["status"] == "skipped":
+        print(f"Test evaluation skipped: {test_metrics['reason']}")
+    result_path = os.path.join(train_cfg["save_dir"], f"{exp_name}_results.json")
+    with open(result_path) as fp:
+        summary = json.load(fp)
+    summary["test_config"] = test_config
+    summary["test_metrics"] = test_metrics
+    with open(result_path, "w") as fp:
+        json.dump(summary, fp, indent=4)
+    return test_metrics
 
 
 def main():
@@ -923,6 +965,8 @@ def main():
         exp_name=exp_name,
         save_dir=train_cfg["save_dir"],
     )
+
+    evaluate_saved_teacher(model, mdl, train_cfg, data_cfg, exp_name)
 
     return exp_name
 

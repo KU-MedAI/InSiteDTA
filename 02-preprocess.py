@@ -271,7 +271,9 @@ def split_data_keys(
     pdb_id_ls: list, val_size: float, seed: int, test_key_file: str = ""
 ):
 
-    if test_key_file:
+    use_test_key_file = bool(test_key_file) and test_key_file.strip().lower() != "none"
+
+    if use_test_key_file:
         with open(test_key_file, "r") as fp:
             ts_keys = fp.read().splitlines()
         tr_vl_keys = [i for i in pdb_id_ls if i not in ts_keys]
@@ -350,9 +352,9 @@ def main():
     save_dir_ptn = os.path.join(args.save_dir, args.ptn_dirname)
 
 
-    # featurize_ligand(
-    #     smiles_csv=args.smiles_csv, pdb_id_ls=pdb_id_ls, save_dir=save_dir_lig
-    # )
+    featurize_ligand(
+        smiles_csv=args.smiles_csv, pdb_id_ls=pdb_id_ls, save_dir=save_dir_lig
+    )
 
     voxelize_protein(
         data_structure=args.data_structure,
@@ -367,18 +369,18 @@ def main():
         pca_path=args.pca_path,
     )
 
-    # generate_data_cfg(
-    #     pdb_id_ls=pdb_id_ls,
-    #     prep_dir_lig=save_dir_lig,
-    #     prep_dir_ptn=save_dir_ptn,
-    #     save_dir=args.save_dir,
-    #     seed=args.seed,
-    #     index_file=args.index_file,
-    #     val_size=args.val_size,
-    #     test_key_file=args.test_key_file,
-    #     voxel_size=args.voxel_size,
-    #     n_voxels=args.n_voxels,
-    # )
+    generate_data_cfg(
+        pdb_id_ls=pdb_id_ls,
+        prep_dir_lig=save_dir_lig,
+        prep_dir_ptn=save_dir_ptn,
+        save_dir=args.save_dir,
+        seed=args.seed,
+        index_file=args.index_file,
+        val_size=args.val_size,
+        test_key_file=args.test_key_file,
+        voxel_size=args.voxel_size,
+        n_voxels=args.n_voxels,
+    )
 
 
 if __name__ == "__main__":
